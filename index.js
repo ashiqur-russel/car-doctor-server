@@ -9,6 +9,7 @@ const port = process.env.PORT || 5001;
 app.use(cors());
 app.use(express.json());
 
+//Database connection
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const { RssFeedRounded } = require("@material-ui/icons");
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.irpitar.mongodb.net/?retryWrites=true&w=majority`;
@@ -19,12 +20,13 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+//Function for Creating collection to the database
 async function run() {
   try {
     const serviceCollection = client.db("carServicea").collection("services");
     const orderCollection = client.db("carServicea").collection("orders");
-    //get all data from db
 
+    //get all data from db
     app.get("/services", async (req, res) => {
       const query = {};
       const cursor = serviceCollection.find(query);
@@ -57,6 +59,14 @@ async function run() {
       const cursor = orderCollection.find(query);
       const orders = await cursor.toArray();
       res.send(orders);
+    });
+
+    //Delete orders by specific id
+    app.delete("/orders/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await orderCollection.deleteOne(query);
+      res.send(result);
     });
   } finally {
   }

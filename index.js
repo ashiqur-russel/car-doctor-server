@@ -1,4 +1,5 @@
 const express = require("express");
+const jwt = require("jsonwebtoken");
 const cors = require("cors");
 require("dotenv").config();
 
@@ -20,12 +21,35 @@ const client = new MongoClient(uri, {
   serverApi: ServerApiVersion.v1,
 });
 
+function verifyJwt(req, res, next) {
+  const authHeaders = req.headers.authorization;
+  if (!authHeaders) {
+    return res.status(401).send({ message: "Unauthorized Access!" });
+  }
+  const token = authHeaders.split(" ")[1];
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+    if (err) {
+      return res.status(401).send({ message: "Unauthorized Access!" });
+    }
+    req.decoded = decoded;
+    next();
+  });
+}
+
 //Function for Creating collection to the database
 async function run() {
   try {
     const serviceCollection = client.db("carServicea").collection("services");
     const orderCollection = client.db("carServicea").collection("orders");
 
+    //Jwt
+    app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "5s",
+      });
+      res.send({ token });
+    });
     //get all data from db
     app.get("/services", async (req, res) => {
       const query = {};
@@ -51,7 +75,12 @@ async function run() {
 
     //Get orders data from db by email query
 
-    app.get("/orders", async (req, res) => {
+    app.get("/orders", verifyJwt, async (req, res) => {
+      const decoded = req.decoded;
+      console.log("Inside orders Api :", decoded);
+      if (decoded.email !== req.query.email) {
+        res.status(403).send({ message: "Unauthorized Access" });
+      }
       let query = {};
       if (req.query.email) {
         query = { email: req.query.email };
